@@ -1,0 +1,291 @@
+---
+title: "CoronaVirus Dashboard - India"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+<style>                     
+.navbar-fixed-top{
+position:sticky
+}
+</style>  
+
+
+```{r libraries_import, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(DT)
+library(knitr)
+library(highcharter)
+library(plotly)
+library(janitor)
+```
+
+
+```{r data_import}
+
+# Importing datasets
+
+world_corona_data <- read.csv("/Coronavirus/novel_covid_19_data.csv")
+corona_data <- read.csv("/Coronavirus/covid_19_india.csv")
+
+# summary(world_corona_data)
+
+```
+
+
+```{r basic_manipulations}
+
+# Converting factor to date
+
+world_corona_data$ObservationDate <-as.Date(world_corona_data$ObservationDate, format = "%m/%d/%Y")
+corona_data$Date <- as.Date(corona_data$Date, format = "%d/%m/%y")
+
+# Forming subsets of dataset for further exploration
+
+world_data_recent <- world_corona_data %>% filter(ObservationDate %in% max(ObservationDate))
+india_data_recent <- corona_data %>% filter(Date %in% max(corona_data$Date))
+```
+
+
+Home
+=======================================================================
+
+Row {.bg-secondary}
+-----------------------------------------------------------------------
+
+```{r data_processing1}
+
+# Finding total global cases
+
+world_wide_cases <- sum(world_data_recent$Confirmed)
+```
+
+### `r paste("Confirmed Cases :", max(world_data_recent$ObservationDate))` 
+
+```{r valuebox1}
+
+# Creating Valuebox
+
+valueBox(prettyNum(world_wide_cases, big.mark = ","),
+         color = "warning", icon = "fa-user-plus")
+```
+
+### `r paste("Active Cases :", max(world_data_recent$ObservationDate))`
+
+```{r valuebox2}
+
+# Finding total active cases 
+
+total_active_cases <- sum(world_data_recent$Confirmed) - sum(world_data_recent$Recovered) -
+  sum(world_data_recent$Deaths)
+
+# Creating Valuebox
+
+valueBox(prettyNum(total_active_cases, big.mark = ","),
+         color = "primary", icon = "fa-stethoscope")
+```
+
+### `r paste("Recovered Cases :", max(world_data_recent$ObservationDate))`
+
+```{r valuebox3}
+
+# Creating Valuebox
+
+valueBox(prettyNum(sum(world_data_recent$Recovered), big.mark = ","),
+         color = "success", icon = "fa-heartbeat")
+```
+
+### `r paste("Deceased Cases :", max(world_data_recent$ObservationDate))`
+
+```{r valuebox4}
+
+# Creating Valuebox
+
+valueBox(prettyNum(sum(world_data_recent$Deaths), big.mark = ","),
+         color = "danger", icon = "fa-users")
+```
+
+
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+```{r data_processing2}
+
+# Processing base data to form subset with total confirmed, recovered and deceased cases.
+
+temp_data <- world_corona_data %>% group_by(ObservationDate) %>%
+              summarise(Confirmed_Cases = sum(Confirmed),
+                        Recovered_Cases = sum(Recovered),
+                        Death_Cases = sum(Deaths))
+
+```
+
+### Global Trend - Confirmed
+
+```{r confirmed_plotly}
+
+# Plotting global trend of confirmed cases.
+
+plot_ly(data = temp_data, x = ~ObservationDate, y = ~Confirmed_Cases, type = "scatter", mode = "line", name = "Confirmed Cases",line = list(color = "blue",width=4)) %>% 
+    layout(yaxis = list(title = "Number of Confirmed Cases"))
+```
+
+### Global Trend - Recovered
+
+```{r recovered_plotly}
+
+# Plotting global trend of recovered cases.
+
+plot_ly(data = temp_data, x = ~ObservationDate, y = ~Recovered_Cases, type = "scatter", mode = "line", name = "Recovered Cases", line = list(color = "green",width=4) ) %>% 
+    layout(yaxis = list(title = "Number of Recovered Cases"))
+```
+
+### Global Trend - Deceased
+
+
+```{r deceased_plotly}
+
+# Plotting global trend of deceased cases.
+
+plot_ly(data = temp_data, x = ~ObservationDate, y = ~Death_Cases, type = "scatter", mode = "line", name = "Deceased Cases",line = list(color = "red",width=4)) %>% 
+    layout(yaxis = list(title = "Number of Deceased Cases"))
+```
+
+
+India Spread
+======================================================================
+
+```{r data_processing3}
+
+# Processing base data to form subset with total confirmed, recovered and deceased cases for India.
+
+temp_data <- india_data_recent %>% group_by(State.UnionTerritory) %>%
+  summarise(Total_Confirmed = sum(Confirmed),
+            Total_Cured = sum(Cured),
+            Total_Deaths = sum(Deaths))
+```
+
+
+Row
+----------------------------------------------------------------------
+
+### `r paste("Effected States/UTs :", max(corona_data$Date))` 
+
+```{r valuebox5}
+
+# Creating Valuebox
+
+valueBox(length(unique(corona_data$State.UnionTerritory)), color = "info")
+```
+
+### `r paste("Active Cases :", max(corona_data$Date))`
+
+```{r valuebox6}
+
+# Creating Valuebox
+
+valueBox((sum(temp_data$Total_Confirmed) - sum(temp_data$Total_Cured)), color = "warning", icon = "fa-stethoscope")
+```
+
+### `r paste("Recovered Cases :", max(corona_data$Date))`
+
+```{r valuebox7}
+
+# Creating Valuebox
+
+valueBox(sum(temp_data$Total_Cured), color = "success", icon = "fa-heartbeat")
+```
+
+### `r paste("Deceased Cases :", max(corona_data$Date))`
+
+```{r valuebox8}
+
+# Creating Valuebox
+
+valueBox(sum(temp_data$Total_Deaths), color = "danger", icon = "fa-users")
+```
+
+Row {.tabset .tabset-fade}
+----------------------------------------------------------------------
+
+```{r data_processing4}
+
+# Forming subset of original data with total confirmed, recovered and deceased cases.
+
+temp_data <- corona_data %>% group_by(Date) %>%
+              summarise(Confirmed_Cases = sum(Confirmed),
+                        Recovered_Cases = sum(Cured),
+                        Death_Cases = sum(Deaths))
+
+top_states <- india_data_recent %>% group_by(State.UnionTerritory) %>%
+  summarise(Confirmed_Cases = sum(Confirmed),
+            Recovered_Cases = sum(Cured),
+            Death_Cases = sum(Deaths)) %>% arrange(-Confirmed_Cases)
+top_states <- head(top_states,10)
+
+```
+
+### Most Effected States/UTs
+
+```{r effected_plot}
+
+# Plotting top 10 states and/or UTs with highest confirmed cases.
+
+ggplot(top_states,aes(x=State.UnionTerritory, y=Confirmed_Cases,fill=State.UnionTerritory))+
+  geom_bar(stat="identity")+
+ labs(title = "Top 10 States/UTs with Highest Confirmed Cases",
+           x = "States/UTs", y = "Number of Confirmed Cases")+
+  theme( axis.line = element_line(colour = "darkblue", 
+                      size = 1, linetype = "solid"),
+   axis.text.x = element_text(angle=90, vjust=0.6),plot.title = element_text(hjust=0.5),legend.position = "none")+
+   geom_text(aes(label=Confirmed_Cases), position=position_dodge(width=0.9), vjust=-0.5)
+
+```
+
+### Trend - Confirmed
+
+```{r confirmed_trend_plotly}
+
+# Plotting global trend of confirmed cases.
+
+plot_ly(data = temp_data, x = ~Date, y = ~Confirmed_Cases, type = "scatter", mode = "line", name = "Confirmed Cases",line = list(color = "blue",width=4)) %>% 
+                    layout(yaxis = list(title = "Number of Confirmed Cases"))
+```
+
+### Trend - Recovered
+
+```{r recovered_trend_plotly}
+
+# Plotting global trend of recovered cases.
+
+plot_ly(data = temp_data,x = ~Date, y = ~Recovered_Cases, type = "scatter", mode = "line", name = "Recovered Cases",line = list(color = "green",width=4)) %>% 
+                    layout(yaxis = list(title = "Number of Recovered Cases"))
+```
+
+### Trend - Deceased
+
+```{r deceased_trend_plotly}
+
+# Plotting global trend of deceased cases.
+
+plot_ly(data = temp_data,x = ~Date, y = ~Death_Cases, type = "scatter", mode = "line", name = "Deceased Cases",line = list(color = "red",width=4)) %>% 
+                    layout(yaxis = list(title = "Number of Deceased Cases"))
+```
+
+
+Data Table
+======================================================================
+
+```{r data_table}
+
+# Creating a data table with filters 
+
+datatable(india_data_recent[ , -c(1,2,3,5,6)], caption = "Interactive Data Table",
+          rownames = T,
+          filter = "top",
+          options = list(pageLength = 25))
+
+```
+
